@@ -9,14 +9,14 @@ import crypto from "crypto";
 const VIDEO_DB_URL =
   "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
 
-// Refresh every 15 minutes (safe + stable)
+// Refresh every 15 minutes (safe interval)
 const REFRESH_INTERVAL = 15 * 60 * 1000;
 
-// Shared token for bot access (loaded from Railway env)
+// Auth token required for MCP access
 const AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;
 
 if (!AUTH_TOKEN) {
-  console.error("❌ ERROR: MCP_AUTH_TOKEN env variable missing!");
+  console.error("❌ ERROR: MCP_AUTH_TOKEN environment variable is missing!");
 }
 
 /******************************************************
@@ -27,7 +27,7 @@ app.use(express.json());
 app.use(cors());
 
 /******************************************************
- * GLOBAL DATABASE
+ * GLOBAL DATABASE CACHE
  ******************************************************/
 global.videoDb = [];
 global.videoDbHash = "";
@@ -46,7 +46,7 @@ async function loadVideoDatabase() {
     const newHash = crypto.createHash("md5").update(text).digest("hex");
 
     if (global.videoDbHash === newHash) {
-      console.log("⏳ No changes — database unchanged.");
+      console.log("⏳ No changes — using cached video DB.");
       return false;
     }
 
@@ -55,7 +55,7 @@ async function loadVideoDatabase() {
     global.videoDb = json;
     global.videoDbHash = newHash;
 
-    console.log(`✅ Reloaded ${json.length} videos`);
+    console.log(`✅ Reloaded video database (${json.length} videos)`);
     return true;
   } catch (err) {
     console.error("❌ Error loading video database:", err);
@@ -106,12 +106,10 @@ function searchVideos(query) {
 }
 
 /******************************************************
- * ROUTES
+ * MCP ROUTES — FULL TOOL DISCOVERY FIX
  ******************************************************/
-app.get("/health", (req, res) => {
-  res.status(200).send("OK");
-});
 
+// GET /mcp → tool discovery
 app.get("/mcp", (req, res) => {
   res.json({
     name: "Video MCP",
@@ -124,18 +122,38 @@ app.get("/mcp", (req, res) => {
   });
 });
 
-app.post("/mcp", async (req, res) => {
-  const { tool, args } = req.body;
+// POST /mcp → discovery OR tool execution
+app.post("/mcp", (req, res) => {
+  const body = req.body || {};
 
-  if (tool === "search_videos") {
-    const query = args?.query || "";
-    const results = searchVideos(query);
+  // NO "tool" field → treat as discovery
+  if (!body.tool) {
     return res.json({
-      results: results.slice(0, 50) // return up to 50 matches
+      name: "Video MCP",
+      tools: [
+        {
+          name: "search_videos",
+          description: "Search the OU video database by keyword"
+        }
+      ]
     });
   }
 
+  // Handle tool execution
+  if (body.tool === "search_videos") {
+    const q = body.args?.query || "";
+    const results = searchVideos(q);
+    return res.json({ results: results.slice(0, 50) });
+  }
+
   return res.status(400).json({ error: "Unknown tool" });
+});
+
+/******************************************************
+ * HEALTH CHECK
+ ******************************************************/
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
 });
 
 /******************************************************
@@ -144,8 +162,8 @@ app.post("/mcp", async (req, res) => {
 async function startServer() {
   console.log("🚀 Starting Video MCP…");
 
-  await loadVideoDatabase(); // initial DB load
-  startAutoRefresh(); // auto-refresh enabled
+  await loadVideoDatabase(); // initial load
+  startAutoRefresh(); // schedule auto-refresh
 
   const port = process.env.PORT || 8080;
 
@@ -155,4 +173,5 @@ async function startServer() {
 }
 
 startServer();
+
 
