@@ -195,5 +195,11 @@ async function startServer() {
     console.log(`🚀 Video MCP running on port ${port}`);
   });
 }
+/******************************************************
+ * KEEP-ALIVE HEARTBEAT
+ ******************************************************/
+setInterval(() => {
+  console.log("💓 Keep-alive heartbeat", new Date().toISOString());
+}, 30000);
 
 startServer();
