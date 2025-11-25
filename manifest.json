@@ -1,0 +1,25 @@
+{
+  "name": "Video Search MCP",
+  "version": "1.0.0",
+  "description": "Search YouTube video metadata from GitHub JSON.",
+  "transport": {
+    "type": "http",
+    "url": "https://YOUR-RAILWAY-URL/mcp"
+  },
+  "tools": [
+    {
+      "name": "search_videos",
+      "description": "Search the video database for keywords.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "Search query"
+          }
+        },
+        "required": ["q"]
+      }
+    }
+  ]
+}
