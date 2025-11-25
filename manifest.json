@@ -1,25 +1,16 @@
 {
-  "name": "Video Search MCP",
-  "version": "1.0.0",
-  "description": "Search YouTube video metadata from GitHub JSON.",
-  "transport": {
-    "type": "http",
-    "url": "https://YOUR-RAILWAY-URL/mcp"
+  "schema_version": "v1",
+  "name_for_human": "OU Video MCP",
+  "name_for_model": "ou_video_mcp",
+  "description_for_human": "Search thousands of curated OU sports videos.",
+  "description_for_model": "Provides the `search_videos` tool for searching Oklahoma Sooners video metadata from GitHub.",
+  "auth": {
+    "type": "bearer",
+    "authorization_type": "header",
+    "token_header": "Authorization"
   },
-  "tools": [
-    {
-      "name": "search_videos",
-      "description": "Search the video database for keywords.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "q": {
-            "type": "string",
-            "description": "Search query"
-          }
-        },
-        "required": ["q"]
-      }
-    }
-  ]
+  "api": {
+    "type": "openapi",
+    "url": "https://video-mcp-production.up.railway.app/openapi.json"
+  }
 }
