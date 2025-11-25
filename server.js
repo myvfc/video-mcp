@@ -1,130 +1,71 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
-import crypto from "crypto";
 
-/******************************************************
- * CONFIG
- ******************************************************/
-const VIDEO_DB_URL =
-  "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
-
-const REFRESH_INTERVAL = 15 * 60 * 1000;
-
-const AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;
-
-/******************************************************
- * EXPRESS SETUP
- ******************************************************/
 const app = express();
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-/******************************************************
- * GLOBAL DATABASE CACHE
- ******************************************************/
-global.videoDb = [];
-global.videoDbHash = "";
+// =======================
+// CONFIG
+// =======================
+const VIDEO_JSON_URL = "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
+const AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;  // set in Railway
+let videos = [];
 
-/******************************************************
- * LOAD DATABASE (initial + refresh)
- ******************************************************/
-async function loadVideoDatabase() {
-  console.log("📡 Fetching videos.json…");
-
+// =======================
+// LOAD VIDEO DATABASE
+// =======================
+async function loadVideos() {
   try {
-    const response = await fetch(VIDEO_DB_URL);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    console.log("📡 Fetching videos.json…");
 
-    const text = await response.text();
-    const newHash = crypto.createHash("md5").update(text).digest("hex");
+    const response = await fetch(VIDEO_JSON_URL);
+    const data = await response.json();
 
-    if (global.videoDbHash === newHash) {
-      console.log("⏳ No changes — using cached video DB.");
-      return false;
-    }
+    videos = data;
+    console.log(`✅ Reloaded video database (${videos.length} videos)`);
 
-    const json = JSON.parse(text);
-    global.videoDb = json;
-    global.videoDbHash = newHash;
-
-    console.log(`✅ Reloaded video database (${json.length} videos)`);
-    return true;
   } catch (err) {
-    console.error("❌ Error loading video database:", err);
-    return false;
+    console.error("❌ Error loading videos.json:", err);
   }
 }
 
-/******************************************************
- * AUTO REFRESH (EVERY 15 MINUTES)
- ******************************************************/
-function startAutoRefresh() {
-  setInterval(async () => {
-    try {
-      console.log("\n🔄 Auto-refresh check…");
-      await loadVideoDatabase();
-    } catch (err) {
-      console.error("❌ Auto-refresh crashed:", err);
-    }
-  }, REFRESH_INTERVAL);
+// =======================
+// AUTO REFRESH EVERY 5 MIN
+// =======================
+async function startAutoRefresh() {
+  await loadVideos();  
+  setInterval(loadVideos, 5 * 60 * 1000);
 }
 
-
-/******************************************************
- * AUTH MIDDLEWARE
- ******************************************************/
-app.use("/mcp", (req, res, next) => {
+// =======================
+// AUTH MIDDLEWARE
+// =======================
+app.use((req, res, next) => {
   const header = req.headers["authorization"] || "";
-  const expected = `Bearer ${AUTH_TOKEN}`;
+  const token = header.replace("Bearer ", "").trim();
 
-  if (header !== expected) {
+  if (token !== AUTH_TOKEN) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
   next();
 });
 
-/******************************************************
- * SEARCH FUNCTION
- ******************************************************/
-function searchVideos(query) {
-  if (!query || query.trim() === "") return [];
-
-  const q = query.toLowerCase();
-
-  return global.videoDb.filter((v) => {
-    return (
-      (v["OU Sooner video"] &&
-        v["OU Sooner video"].toLowerCase().includes(q)) ||
-      (v.description && v.description.toLowerCase().includes(q)) ||
-      (v.channel && v.channel.toLowerCase().includes(q))
-    );
-  });
-}
-
-/******************************************************
- * JSON-RPC /mcp ENDPOINT (REQUIRED BY MCP SPEC)
- ******************************************************/
+// =======================
+// JSON-RPC MCP ENDPOINT
+// =======================
 app.post("/mcp", (req, res) => {
-  const rpc = req.body;
+  const { method, params, id } = req.body;
 
-  // Validate basic JSON-RPC structure
-  if (!rpc || rpc.jsonrpc !== "2.0" || !rpc.id || !rpc.method) {
-    return res.status(400).json({
-      jsonrpc: "2.0",
-      id: null,
-      error: { code: -32600, message: "Invalid Request" }
-    });
-  }
-
-  /*********************************************
-   * TOOL DISCOVERY — method: tools/list
-   *********************************************/
-  if (rpc.method === "tools/list") {
+  // ---------------------
+  // TOOL DISCOVERY
+  // ---------------------
+  if (method === "tools/list") {
     return res.json({
       jsonrpc: "2.0",
-      id: rpc.id,
+      id,
       result: {
         name: "Video MCP",
         tools: [
@@ -144,55 +85,61 @@ app.post("/mcp", (req, res) => {
     });
   }
 
-  /*********************************************
-   * TOOL EXECUTION — method: tools/call
-   *********************************************/
-  if (rpc.method === "tools/call") {
-    const toolName = rpc.params?.name;
-    const args = rpc.params?.arguments || {};
+  // ---------------------
+  // TOOL CALL
+  // ---------------------
+  if (method === "tools/call") {
+    if (params.name === "search_videos") {
+      const q = params.arguments.query.toLowerCase();
 
-    if (toolName === "search_videos") {
-      const q = args.query || "";
-      const results = searchVideos(q);
+      // Use your REAL Google Sheet headers:
+      const results = videos.filter(video => {
+        const title = (video["OU Sooner video"] || "").toLowerCase();
+        const desc = (video["description"] || "").toLowerCase();
+        const channel = (video["channel"] || "").toLowerCase();
+
+        return (
+          title.includes(q) ||
+          desc.includes(q) ||
+          channel.includes(q)
+        );
+      });
 
       return res.json({
         jsonrpc: "2.0",
-        id: rpc.id,
-        result: { results: results.slice(0, 50) }
+        id,
+        result: { results }
       });
     }
 
-    return res.status(400).json({
+    return res.json({
       jsonrpc: "2.0",
-      id: rpc.id,
-      error: { code: -32601, message: "Unknown tool" }
+      id,
+      error: { message: "Unknown tool" }
     });
   }
 
-  /*********************************************
-   * UNKNOWN METHOD
-   *********************************************/
-  return res.status(400).json({
+  return res.json({
     jsonrpc: "2.0",
-    id: rpc.id,
-    error: { code: -32601, message: "Method not found" }
+    id,
+    error: { message: "Unknown method" }
   });
 });
 
-/******************************************************
- * HEALTH CHECK
- ******************************************************/
-app.get("/health", (req, res) => {
-  res.status(200).send("OK");
-});
+// =======================
+// KEEP ALIVE HEARTBEAT
+// =======================
+setInterval(() => {
+  console.log("💓 Keep-alive heartbeat", new Date().toISOString());
+}, 30 * 1000);
 
-/******************************************************
- * START SERVER
- ******************************************************/
+// =======================
+// START SERVER
+// =======================
 async function startServer() {
   console.log("🚀 Starting Video MCP…");
 
-  await loadVideoDatabase();
+  await loadVideos();
   startAutoRefresh();
 
   const port = process.env.PORT || 8080;
@@ -200,12 +147,5 @@ async function startServer() {
     console.log(`🚀 Video MCP running on port ${port}`);
   });
 }
-
-/******************************************************
- * KEEP-ALIVE HEARTBEAT
- ******************************************************/
-setInterval(() => {
-  console.log("💓 Keep-alive heartbeat", new Date().toISOString());
-}, 30000);
 
 startServer();
