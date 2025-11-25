@@ -9,15 +9,9 @@ import crypto from "crypto";
 const VIDEO_DB_URL =
   "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
 
-// Refresh every 15 minutes (safe interval)
 const REFRESH_INTERVAL = 15 * 60 * 1000;
 
-// Auth token required for MCP access
 const AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;
-
-if (!AUTH_TOKEN) {
-  console.error("❌ ERROR: MCP_AUTH_TOKEN environment variable is missing!");
-}
 
 /******************************************************
  * EXPRESS SETUP
@@ -51,7 +45,6 @@ async function loadVideoDatabase() {
     }
 
     const json = JSON.parse(text);
-
     global.videoDb = json;
     global.videoDbHash = newHash;
 
@@ -106,47 +99,79 @@ function searchVideos(query) {
 }
 
 /******************************************************
- * MCP ROUTES — FULL TOOL DISCOVERY FIX
+ * JSON-RPC /mcp ENDPOINT (REQUIRED BY MCP SPEC)
  ******************************************************/
-
-// GET /mcp → tool discovery
-app.get("/mcp", (req, res) => {
-  res.json({
-    name: "Video MCP",
-    tools: [
-      {
-        name: "search_videos",
-        description: "Search the OU video database by keyword"
-      }
-    ]
-  });
-});
-
-// POST /mcp → discovery OR tool execution
 app.post("/mcp", (req, res) => {
-  const body = req.body || {};
+  const rpc = req.body;
 
-  // NO "tool" field → treat as discovery
-  if (!body.tool) {
-    return res.json({
-      name: "Video MCP",
-      tools: [
-        {
-          name: "search_videos",
-          description: "Search the OU video database by keyword"
-        }
-      ]
+  // Validate basic JSON-RPC structure
+  if (!rpc || rpc.jsonrpc !== "2.0" || !rpc.id || !rpc.method) {
+    return res.status(400).json({
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32600, message: "Invalid Request" }
     });
   }
 
-  // Handle tool execution
-  if (body.tool === "search_videos") {
-    const q = body.args?.query || "";
-    const results = searchVideos(q);
-    return res.json({ results: results.slice(0, 50) });
+  /*********************************************
+   * TOOL DISCOVERY — method: tools/list
+   *********************************************/
+  if (rpc.method === "tools/list") {
+    return res.json({
+      jsonrpc: "2.0",
+      id: rpc.id,
+      result: {
+        name: "Video MCP",
+        tools: [
+          {
+            name: "search_videos",
+            description: "Search the OU video database by keyword",
+            input_schema: {
+              type: "object",
+              properties: {
+                query: { type: "string" }
+              },
+              required: ["query"]
+            }
+          }
+        ]
+      }
+    });
   }
 
-  return res.status(400).json({ error: "Unknown tool" });
+  /*********************************************
+   * TOOL EXECUTION — method: tools/call
+   *********************************************/
+  if (rpc.method === "tools/call") {
+    const toolName = rpc.params?.name;
+    const args = rpc.params?.arguments || {};
+
+    if (toolName === "search_videos") {
+      const q = args.query || "";
+      const results = searchVideos(q);
+
+      return res.json({
+        jsonrpc: "2.0",
+        id: rpc.id,
+        result: { results: results.slice(0, 50) }
+      });
+    }
+
+    return res.status(400).json({
+      jsonrpc: "2.0",
+      id: rpc.id,
+      error: { code: -32601, message: "Unknown tool" }
+    });
+  }
+
+  /*********************************************
+   * UNKNOWN METHOD
+   *********************************************/
+  return res.status(400).json({
+    jsonrpc: "2.0",
+    id: rpc.id,
+    error: { code: -32601, message: "Method not found" }
+  });
 });
 
 /******************************************************
@@ -162,16 +187,13 @@ app.get("/health", (req, res) => {
 async function startServer() {
   console.log("🚀 Starting Video MCP…");
 
-  await loadVideoDatabase(); // initial load
-  startAutoRefresh(); // schedule auto-refresh
+  await loadVideoDatabase();
+  startAutoRefresh();
 
   const port = process.env.PORT || 8080;
-
   app.listen(port, () => {
     console.log(`🚀 Video MCP running on port ${port}`);
   });
 }
 
 startServer();
-
-
