@@ -200,6 +200,7 @@ async function startServer() {
     console.log(`🚀 Video MCP running on port ${port}`);
   });
 }
+
 /******************************************************
  * KEEP-ALIVE HEARTBEAT
  ******************************************************/
