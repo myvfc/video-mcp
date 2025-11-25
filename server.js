@@ -57,16 +57,18 @@ async function loadVideoDatabase() {
 }
 
 /******************************************************
- * AUTO-REFRESH LOOP
+ * AUTO REFRESH (EVERY 15 MINUTES)
  ******************************************************/
-setInterval(async () => {
-  try {
-    console.log("\n🔄 Auto-refresh check…");
-    await loadVideoDatabase();
-  } catch (err) {
-    console.error("❌ Auto-refresh crashed:", err);
-  }
-}, REFRESH_INTERVAL);
+function startAutoRefresh() {
+  setInterval(async () => {
+    try {
+      console.log("\n🔄 Auto-refresh check…");
+      await loadVideoDatabase();
+    } catch (err) {
+      console.error("❌ Auto-refresh crashed:", err);
+    }
+  }, REFRESH_INTERVAL);
+}
 
 
 /******************************************************
