@@ -5,6 +5,24 @@ import cors from "cors";
 const app = express();
 app.use(cors());
 app.use(express.json());
+import express from "express";
+import cors from "cors";
+import fetch from "node-fetch";
+
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// ⭐ SERVE OPENAPI FILE HERE ⭐
+app.get("/openapi.json", (req, res) => {
+  res.sendFile(path.join(__dirname, "openapi.json"));
+});
 
 // =======================
 // CONFIG
