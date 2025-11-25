@@ -59,12 +59,15 @@ async function loadVideoDatabase() {
 /******************************************************
  * AUTO-REFRESH LOOP
  ******************************************************/
-function startAutoRefresh() {
-  setInterval(async () => {
+setInterval(async () => {
+  try {
     console.log("\n🔄 Auto-refresh check…");
     await loadVideoDatabase();
-  }, REFRESH_INTERVAL);
-}
+  } catch (err) {
+    console.error("❌ Auto-refresh crashed:", err);
+  }
+}, REFRESH_INTERVAL);
+
 
 /******************************************************
  * AUTH MIDDLEWARE
