@@ -126,9 +126,22 @@ app.post("/mcp", requireAuth, async (req, res) => {
           v["OU Sooners videos"]?.toLowerCase().includes(query) ||
           v["Description"]?.toLowerCase().includes(query)
         )
-        .slice(0, 25);
+        .slice(0, 25); // Get up to 25, bot will show only 3
 
       console.log(`✅ Found ${matches.length} videos`);
+      
+      // Format videos with embed info
+      const formattedVideos = matches.map(v => ({
+        title: v["OU Sooners videos"],
+        url: v["URL"],
+        videoId: v["URL"]?.split('v=')[1]?.split('&')[0], // Extract YouTube ID
+        embedUrl: v["URL"]?.includes('youtube.com') 
+          ? `https://www.youtube.com/embed/${v["URL"].split('v=')[1]?.split('&')[0]}`
+          : v["URL"],
+        description: v["Description"],
+        channel: v["Channel"],
+        publishedDate: v["Published Date"]
+      }));
       
       return res.json({
         jsonrpc: "2.0",
@@ -137,7 +150,11 @@ app.post("/mcp", requireAuth, async (req, res) => {
           content: [
             {
               type: "text",
-              text: JSON.stringify({ results: matches }, null, 2)
+              text: JSON.stringify({ 
+                results: formattedVideos,
+                totalFound: matches.length,
+                message: "Show maximum 3 videos. User can request more if needed."
+              }, null, 2)
             }
           ]
         }
