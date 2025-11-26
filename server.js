@@ -1,75 +1,184 @@
-You are Sky, the voice of Boomer Bot for Oklahoma Sooners fans.
+import express from "express";
+import cors from "cors";
+import fetch from "node-fetch";
 
-# CRITICAL RULE - READ FIRST
+const PORT = process.env.PORT || 8080;
+const VIDEOS_URL = "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
+const AUTH_TOKEN = process.env.MCP_AUTH || "";
 
-When user mentions ANY of these words: video, videos, highlight, highlights, clip, clips, watch, show, see, hype, footage, replay
+let videoDB = [];
 
-YOU MUST IMMEDIATELY:
-1. Call the search_videos tool
-2. Extract 1-3 keywords from user's question
-3. Pass keywords as the query parameter
+/* ----------------------------- Load Database ----------------------------- */
+async function loadVideos() {
+  console.log("📡 Fetching videos.json…");
+  try {
+    const res = await fetch(VIDEOS_URL);
+    const json = await res.json();
+    videoDB = json;
+    console.log(`✅ Loaded ${videoDB.length} videos`);
+  } catch (err) {
+    console.error("❌ Failed to load videos:", err.message);
+  }
+}
 
-DO NOT:
-- Say "I'll search" without actually searching
-- Say "let me find" without calling the tool
-- Answer from your training data
-- Make up video titles
+/* ----------------------------- Express Setup ----------------------------- */
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-# Example Interactions
+/* ---------------------------- Health Check ------------------------------- */
+app.get("/", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    service: "Video MCP Server",
+    videos: videoDB.length,
+    uptime: process.uptime()
+  });
+});
 
-User: "Show me Baker Mayfield highlights"
-Action: IMMEDIATELY call search_videos(query: "Baker Mayfield")
-Response: [Display actual video results from tool]
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
 
-User: "OU vs Texas videos"
-Action: IMMEDIATELY call search_videos(query: "Texas")
-Response: [Display actual video results from tool]
+/* ---------------------------- Auth Middleware ---------------------------- */
+function requireAuth(req, res, next) {
+  if (!AUTH_TOKEN) {
+    return next(); // No auth required if token not set
+  }
+  
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (token === AUTH_TOKEN) {
+    return next();
+  }
+  
+  return res.status(401).json({ error: "Unauthorized" });
+}
 
-User: "touchdown highlights"  
-Action: IMMEDIATELY call search_videos(query: "touchdown")
-Response: [Display actual video results from tool]
+/* ----------------------------- JSON-RPC MCP ------------------------------ */
+app.post("/mcp", requireAuth, async (req, res) => {
+  try {
+    const { jsonrpc, method, id, params } = req.body;
+    
+    console.log(`🔧 MCP: ${method}`);
+    
+    if (jsonrpc !== "2.0") {
+      return res.json({ jsonrpc: "2.0", id, error: "Invalid JSON-RPC" });
+    }
 
-# Tool Information
+    // MCP Initialize
+    if (method === "initialize") {
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          protocolVersion: "2024-11-05",
+          capabilities: { tools: {} },
+          serverInfo: { name: "Video MCP", version: "1.0.0" }
+        }
+      });
+    }
 
-You have access to search_videos tool that searches a database of 4,773 Oklahoma Sooners videos. The tool is your ONLY way to access videos. You do NOT have videos in your knowledge base.
+    // MCP Initialized notification
+    if (method === "notifications/initialized") {
+      return res.status(200).end();
+    }
 
-When search_videos returns results:
-- Display video titles as bold text
-- Include YouTube URLs as clickable links
-- Show 3-5 top results
-- Offer to search for more
+    // Tools List
+    if (method === "tools/list") {
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          tools: [
+            {
+              name: "search_videos",
+              description: "Search 4773 OU Sooners videos",
+              inputSchema: {
+                type: "object",
+                properties: { 
+                  query: { type: "string", description: "Search keywords" } 
+                },
+                required: ["query"]
+              }
+            }
+          ]
+        }
+      });
+    }
 
-# For Non-Video Questions
+    // Tools Call
+    if (method === "tools/call") {
+      const toolName = params?.name;
+      
+      if (toolName !== "search_videos") {
+        return res.json({
+          jsonrpc: "2.0",
+          id,
+          error: { code: -32601, message: "Unknown tool" }
+        });
+      }
 
-For scores, rankings, schedules: Use your other MCP tools (ESPN, CFBD, NCAA)
-For general OU info: Answer from your knowledge
-For everything else: Be helpful and enthusiastic
+      const query = params?.arguments?.query?.toLowerCase() || "";
+      console.log(`🔍 Search: "${query}"`);
+      
+      const matches = videoDB
+        .filter(v =>
+          v["OU Sooner video"]?.toLowerCase().includes(query) ||
+          v.description?.toLowerCase().includes(query)
+        )
+        .slice(0, 25);
 
-# Your Personality
+      console.log(`✅ Found ${matches.length} videos`);
+      
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ results: matches }, null, 2)
+            }
+          ]
+        }
+      });
+    }
 
-- Enthusiastic Sooners superfan
-- Use "Boomer Sooner!" naturally
-- Reference legendary moments (Billy Sims, Baker Mayfield, 2000 Nebraska)
-- Be concise but informative
-- Show genuine passion for OU
+    // Unknown method
+    return res.json({ 
+      jsonrpc: "2.0", 
+      id, 
+      error: { code: -32601, message: "Method not found" }
+    });
+    
+  } catch (err) {
+    console.error("❌ MCP Error:", err.message);
+    return res.json({ 
+      jsonrpc: "2.0", 
+      id: null, 
+      error: { code: -32603, message: "Internal error" }
+    });
+  }
+});
 
-REMEMBER: When users ask for videos, CALL THE TOOL. Don't just talk about it.
-```
+/* ----------------------------- Start Server ------------------------------ */
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Video MCP running on port ${PORT}`);
+  console.log(`✅ Server ready`);
+  
+  // Load videos AFTER server starts
+  loadVideos().then(() => {
+    console.log(`📊 Database ready`);
+    // Auto-refresh every 15 minutes
+    setInterval(loadVideos, 15 * 60 * 1000);
+  });
+});
 
-## 🎯 **Why This Will Work:**
+/* --------------------------- Error Handlers ------------------------------ */
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err.message);
+});
 
-This prompt:
-1. **Puts video search at the TOP** (highest priority)
-2. **Uses directive language** (MUST, IMMEDIATELY, DO NOT)
-3. **Shows exact examples** with tool syntax
-4. **Explains the tool is the ONLY way** to access videos
-5. **Simple and focused** on the video search problem
-
-## 📋 **Test After Updating Prompt:**
-
-1. **Update system prompt in PaymeGPT**
-2. **Ask:** "show me Baker Mayfield highlights"
-3. **Watch Railway logs** for:
-```
-   🔍 Searching videos with query: "baker mayfield"
-   ✅ Found X matching videosv
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ Unhandled Rejection:', reason);
+});
