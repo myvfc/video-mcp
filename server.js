@@ -113,20 +113,49 @@ app.post("/mcp", requireAuth, async (req, res) => {
       return res.json({ jsonrpc: "2.0", id, error: "Invalid JSON-RPC version" });
     }
 
+    // MCP Protocol: Initialize handshake
+    if (method === "initialize") {
+      console.log(`🤝 MCP Initialize request`);
+      return res.json({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          protocolVersion: "2024-11-05",
+          capabilities: {
+            tools: {}
+          },
+          serverInfo: {
+            name: "Video MCP",
+            version: "1.0.0"
+          }
+        }
+      });
+    }
+
+    // MCP Protocol: Initialized notification (no response needed)
+    if (method === "notifications/initialized") {
+      console.log(`✅ MCP Initialized notification received`);
+      return res.status(200).end();
+    }
+
     if (method === "tools/list") {
       console.log(`📋 Returning tools list`);
       return res.json({
         jsonrpc: "2.0",
         id,
         result: {
-          name: "Video MCP",
           tools: [
             {
               name: "search_videos",
-              description: "Search the OU video database",
-              input_schema: {
+              description: "Search the OU video database (4773 videos)",
+              inputSchema: {
                 type: "object",
-                properties: { query: { type: "string" } },
+                properties: { 
+                  query: { 
+                    type: "string",
+                    description: "Search keywords (e.g., 'Baker Mayfield', 'Texas', 'touchdown')"
+                  } 
+                },
                 required: ["query"]
               }
             }
@@ -141,7 +170,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
         return res.json({
           jsonrpc: "2.0",
           id,
-          error: "Unknown tool"
+          error: { code: -32601, message: `Unknown tool: ${params?.name}` }
         });
       }
 
@@ -160,15 +189,30 @@ app.post("/mcp", requireAuth, async (req, res) => {
       return res.json({
         jsonrpc: "2.0",
         id,
-        result: { results: matches }
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ results: matches }, null, 2)
+            }
+          ]
+        }
       });
     }
 
     console.log(`❌ Unknown method: ${method}`);
-    return res.json({ jsonrpc: "2.0", id, error: "Unknown method" });
+    return res.json({ 
+      jsonrpc: "2.0", 
+      id, 
+      error: { code: -32601, message: `Method not found: ${method}` }
+    });
   } catch (err) {
     console.error("❌ MCP Error", err);
-    res.json({ jsonrpc: "2.0", id: null, error: "Server error" });
+    res.json({ 
+      jsonrpc: "2.0", 
+      id: null, 
+      error: { code: -32603, message: "Internal error" }
+    });
   }
 });
 
