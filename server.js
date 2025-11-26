@@ -1,241 +1,75 @@
-import express from "express";
-import cors from "cors";
-import fetch from "node-fetch";
+You are Sky, the voice of Boomer Bot for Oklahoma Sooners fans.
 
-const PORT = process.env.PORT || 8080;
-const VIDEOS_URL = "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
-const AUTH_TOKEN = process.env.MCP_AUTH || "";  // add in Railway variables
+# CRITICAL RULE - READ FIRST
 
-let videoDB = [];
+When user mentions ANY of these words: video, videos, highlight, highlights, clip, clips, watch, show, see, hype, footage, replay
 
-/* ----------------------------- Load Database ----------------------------- */
-async function loadVideos() {
-  console.log("📡 Fetching videos.json…");
-  try {
-    const res = await fetch(VIDEOS_URL);
-    const json = await res.json();
-    videoDB = json;
-    console.log(`✅ Reloaded video database (${videoDB.length} videos)`);
-  } catch (err) {
-    console.error("❌ Failed to load videos.json:", err);
-  }
-}
+YOU MUST IMMEDIATELY:
+1. Call the search_videos tool
+2. Extract 1-3 keywords from user's question
+3. Pass keywords as the query parameter
 
-/* ----------------------------- Auto Refresh ------------------------------ */
-setInterval(loadVideos, 15 * 60 * 1000); // 15 minutes
+DO NOT:
+- Say "I'll search" without actually searching
+- Say "let me find" without calling the tool
+- Answer from your training data
+- Make up video titles
 
-/* ----------------------------- Express Setup ----------------------------- */
-const app = express();
-app.use(cors());
-app.use(express.json());
+# Example Interactions
 
-// Log ALL incoming requests to diagnose Railway health checks
-app.use((req, res, next) => {
-  console.log(`📥 ${req.method} ${req.path} from ${req.ip}`);
-  next();
-});
+User: "Show me Baker Mayfield highlights"
+Action: IMMEDIATELY call search_videos(query: "Baker Mayfield")
+Response: [Display actual video results from tool]
 
-/* ----------------------------- Keep Alive ----------------------------- */
-// Railway provides these automatically - no manual setup needed:
-// RAILWAY_PUBLIC_DOMAIN or RAILWAY_STATIC_URL
-const RAILWAY_URL = process.env.RAILWAY_PUBLIC_DOMAIN 
-  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  : process.env.RAILWAY_STATIC_URL || null;
+User: "OU vs Texas videos"
+Action: IMMEDIATELY call search_videos(query: "Texas")
+Response: [Display actual video results from tool]
 
-// Self-ping to keep Railway container alive
-if (RAILWAY_URL) {
-  console.log(`🔄 Keep-alive enabled for: ${RAILWAY_URL}`);
-  setInterval(async () => {
-    try {
-      const response = await fetch(`${RAILWAY_URL}/health`);
-      const data = await response.json();
-      console.log(`💓 Keep-alive ping: ${data.videos} videos, status: ${data.status}`);
-    } catch (err) {
-      console.log(`💓 Keep-alive ping attempt (waiting for domain...)`);
-    }
-  }, 5 * 60 * 1000); // Ping every 5 minutes
-} else {
-  console.log(`⚠️  No Railway URL detected - keep-alive disabled (normal for local dev)`);
-}
+User: "touchdown highlights"  
+Action: IMMEDIATELY call search_videos(query: "touchdown")
+Response: [Display actual video results from tool]
 
-// Heartbeat logging
-setInterval(() => {
-  console.log(`💓 Heartbeat ${new Date().toISOString()} | Videos: ${videoDB.length}`);
-}, 30000);
+# Tool Information
 
-/* ---------------------------- Health Check ------------------------------- */
-app.get("/", (req, res) => {
-  res.json({ 
-    status: "ok", 
-    service: "Video MCP Server",
-    videos: videoDB.length,
-    uptime: process.uptime()
-  });
-});
+You have access to search_videos tool that searches a database of 4,773 Oklahoma Sooners videos. The tool is your ONLY way to access videos. You do NOT have videos in your knowledge base.
 
-app.get("/health", (req, res) => {
-  console.log("🏥 Health check pinged");
-  res.status(200).send("OK");
-});
+When search_videos returns results:
+- Display video titles as bold text
+- Include YouTube URLs as clickable links
+- Show 3-5 top results
+- Offer to search for more
 
-app.get("/healthz", (req, res) => {
-  console.log("🏥 Healthz check pinged");
-  res.status(200).json({ status: "healthy" });
-});
+# For Non-Video Questions
 
-/* ---------------------------- Auth Middleware ---------------------------- */
-function requireAuth(req, res, next) {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  
-  if (!AUTH_TOKEN) {
-    console.log(`⚠️  No AUTH_TOKEN configured - allowing request`);
-    return next();
-  }
-  
-  if (token === AUTH_TOKEN) {
-    console.log(`✅ Authentication successful`);
-    return next();
-  }
-  
-  console.log(`❌ Authentication failed - token mismatch`);
-  return res.status(401).json({ error: "Unauthorized" });
-}
+For scores, rankings, schedules: Use your other MCP tools (ESPN, CFBD, NCAA)
+For general OU info: Answer from your knowledge
+For everything else: Be helpful and enthusiastic
 
-/* ----------------------------- JSON-RPC MCP ------------------------------ */
-app.post("/mcp", requireAuth, async (req, res) => {
-  try {
-    const { jsonrpc, method, id, params } = req.body;
-    
-    console.log(`🔧 MCP Request - Method: ${method}, ID: ${id}`);
-    
-    if (jsonrpc !== "2.0") {
-      console.log(`❌ Invalid JSON-RPC version: ${jsonrpc}`);
-      return res.json({ jsonrpc: "2.0", id, error: "Invalid JSON-RPC version" });
-    }
+# Your Personality
 
-    // MCP Protocol: Initialize handshake
-    if (method === "initialize") {
-      console.log(`🤝 MCP Initialize request`);
-      return res.json({
-        jsonrpc: "2.0",
-        id,
-        result: {
-          protocolVersion: "2024-11-05",
-          capabilities: {
-            tools: {}
-          },
-          serverInfo: {
-            name: "Video MCP",
-            version: "1.0.0"
-          }
-        }
-      });
-    }
+- Enthusiastic Sooners superfan
+- Use "Boomer Sooner!" naturally
+- Reference legendary moments (Billy Sims, Baker Mayfield, 2000 Nebraska)
+- Be concise but informative
+- Show genuine passion for OU
 
-    // MCP Protocol: Initialized notification (no response needed)
-    if (method === "notifications/initialized") {
-      console.log(`✅ MCP Initialized notification received`);
-      return res.status(200).end();
-    }
+REMEMBER: When users ask for videos, CALL THE TOOL. Don't just talk about it.
+```
 
-    if (method === "tools/list") {
-      console.log(`📋 Returning tools list`);
-      return res.json({
-        jsonrpc: "2.0",
-        id,
-        result: {
-          tools: [
-            {
-              name: "search_videos",
-              description: "Search the OU video database (4773 videos)",
-              inputSchema: {
-                type: "object",
-                properties: { 
-                  query: { 
-                    type: "string",
-                    description: "Search keywords (e.g., 'Baker Mayfield', 'Texas', 'touchdown')"
-                  } 
-                },
-                required: ["query"]
-              }
-            }
-          ]
-        }
-      });
-    }
+## 🎯 **Why This Will Work:**
 
-    if (method === "tools/call") {
-      if (!params || params.name !== "search_videos") {
-        console.log(`❌ Unknown tool requested: ${params?.name}`);
-        return res.json({
-          jsonrpc: "2.0",
-          id,
-          error: { code: -32601, message: `Unknown tool: ${params?.name}` }
-        });
-      }
+This prompt:
+1. **Puts video search at the TOP** (highest priority)
+2. **Uses directive language** (MUST, IMMEDIATELY, DO NOT)
+3. **Shows exact examples** with tool syntax
+4. **Explains the tool is the ONLY way** to access videos
+5. **Simple and focused** on the video search problem
 
-      const q = params.arguments?.query?.toLowerCase() || "";
-      console.log(`🔍 Searching videos with query: "${q}"`);
-      
-      const matches = videoDB
-        .filter(v =>
-          v["OU Sooner video"]?.toLowerCase().includes(q) ||
-          v.description?.toLowerCase().includes(q)
-        )
-        .slice(0, 25);
+## 📋 **Test After Updating Prompt:**
 
-      console.log(`✅ Found ${matches.length} matching videos`);
-      
-      return res.json({
-        jsonrpc: "2.0",
-        id,
-        result: {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ results: matches }, null, 2)
-            }
-          ]
-        }
-      });
-    }
-
-    console.log(`❌ Unknown method: ${method}`);
-    return res.json({ 
-      jsonrpc: "2.0", 
-      id, 
-      error: { code: -32601, message: `Method not found: ${method}` }
-    });
-  } catch (err) {
-    console.error("❌ MCP Error", err);
-    res.json({ 
-      jsonrpc: "2.0", 
-      id: null, 
-      error: { code: -32603, message: "Internal error" }
-    });
-  }
-});
-
-/* ----------------------------- Start Server ------------------------------ */
-const server = app.listen(PORT, () => {
-  const addr = server.address();
-  console.log(`🚀 Video MCP running on port ${PORT}`);
-  console.log(`🌐 Listening on ${addr.address}:${addr.port}`);
-  console.log(`✅ Server ready and accepting connections`);
-  
-  // Load videos AFTER server is running
-  loadVideos().then(() => {
-    console.log(`📊 Database loaded with ${videoDB.length} videos`);
-  });
-});
-
-/* --------------------------- Error Handlers ------------------------------ */
-process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
-  // Don't exit - keep server running
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit - keep server running
-});
+1. **Update system prompt in PaymeGPT**
+2. **Ask:** "show me Baker Mayfield highlights"
+3. **Watch Railway logs** for:
+```
+   🔍 Searching videos with query: "baker mayfield"
+   ✅ Found X matching videosv
