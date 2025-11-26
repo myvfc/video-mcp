@@ -86,7 +86,18 @@ app.get("/healthz", (req, res) => {
 /* ---------------------------- Auth Middleware ---------------------------- */
 function requireAuth(req, res, next) {
   const token = req.headers.authorization?.replace("Bearer ", "");
-  if (!AUTH_TOKEN || token === AUTH_TOKEN) return next();
+  
+  if (!AUTH_TOKEN) {
+    console.log(`⚠️  No AUTH_TOKEN configured - allowing request`);
+    return next();
+  }
+  
+  if (token === AUTH_TOKEN) {
+    console.log(`✅ Authentication successful`);
+    return next();
+  }
+  
+  console.log(`❌ Authentication failed - token mismatch`);
   return res.status(401).json({ error: "Unauthorized" });
 }
 
@@ -95,11 +106,15 @@ app.post("/mcp", requireAuth, async (req, res) => {
   try {
     const { jsonrpc, method, id, params } = req.body;
     
+    console.log(`🔧 MCP Request - Method: ${method}, ID: ${id}`);
+    
     if (jsonrpc !== "2.0") {
+      console.log(`❌ Invalid JSON-RPC version: ${jsonrpc}`);
       return res.json({ jsonrpc: "2.0", id, error: "Invalid JSON-RPC version" });
     }
 
     if (method === "tools/list") {
+      console.log(`📋 Returning tools list`);
       return res.json({
         jsonrpc: "2.0",
         id,
@@ -122,6 +137,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
 
     if (method === "tools/call") {
       if (!params || params.name !== "search_videos") {
+        console.log(`❌ Unknown tool requested: ${params?.name}`);
         return res.json({
           jsonrpc: "2.0",
           id,
@@ -130,6 +146,8 @@ app.post("/mcp", requireAuth, async (req, res) => {
       }
 
       const q = params.arguments?.query?.toLowerCase() || "";
+      console.log(`🔍 Searching videos with query: "${q}"`);
+      
       const matches = videoDB
         .filter(v =>
           v["OU Sooner video"]?.toLowerCase().includes(q) ||
@@ -137,6 +155,8 @@ app.post("/mcp", requireAuth, async (req, res) => {
         )
         .slice(0, 25);
 
+      console.log(`✅ Found ${matches.length} matching videos`);
+      
       return res.json({
         jsonrpc: "2.0",
         id,
@@ -144,6 +164,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
       });
     }
 
+    console.log(`❌ Unknown method: ${method}`);
     return res.json({ jsonrpc: "2.0", id, error: "Unknown method" });
   } catch (err) {
     console.error("❌ MCP Error", err);
