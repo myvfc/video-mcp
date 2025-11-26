@@ -1,0 +1,136 @@
+# Unified Boomer Bot MCP - Essential 10 Tools
+
+## ✅ The Essential 10 Tools
+
+These are the most important tools users will actually use:
+
+### 🎥 VIDEO (1 tool)
+1. **search_videos** - Search 4,773 OU videos with embedded players
+   - Your main differentiator
+   - Returns max 3 videos per request
+
+### 📊 LIVE SPORTS DATA (4 tools)
+2. **get_score** - Current/recent OU game scores
+3. **get_scoreboard** - Today's college football games
+4. **get_rankings** - AP Top 25 rankings
+5. **get_schedule** - OU game schedule (dates, opponents)
+
+### 📈 STATS & HISTORY (5 tools)
+6. **get_recruiting** - OU recruiting class rankings
+7. **get_team_stats** - OU season statistics (yards, TDs)
+8. **get_team_matchup** - Head-to-head records (OU vs Texas)
+9. **get_conference_standings** - Conference standings (Big 12, SEC)
+10. **get_team_records** - All-time win/loss records
+
+---
+
+## 🗑️ What We Removed (10 tools)
+
+These were removed because they're:
+- Redundant (covered by other tools)
+- Too specific/niche
+- Rarely requested by users
+
+**Removed:**
+- get_ncaa_scoreboard (redundant with get_scoreboard)
+- get_ncaa_rankings (redundant with get_rankings)
+- get_game_player_stats (too specific)
+- get_game_stats (covered by get_team_stats)
+- get_play_by_play (too detailed/niche)
+- get_player_stats (too specific)
+- get_returning_production (niche stat)
+- get_team_rankings (covered by get_rankings)
+- get_team_talent (niche stat)
+- get_venue_info (rarely asked)
+
+**Note:** The handlers are still in the code, just not exposed to PaymeGPT. Can be re-enabled if needed.
+
+---
+
+## 💪 Why This Works Better
+
+**10 tools vs 20 tools:**
+- ✅ PaymeGPT can route effectively
+- ✅ Bot doesn't get overwhelmed
+- ✅ Tools actually get executed
+- ✅ Faster response times
+- ✅ Users get what they need
+
+**Coverage:**
+- ✅ Videos (main feature)
+- ✅ Scores (essential)
+- ✅ Rankings (essential)
+- ✅ Schedule (essential)
+- ✅ Recruiting (key differentiator)
+- ✅ Stats (popular requests)
+- ✅ History (rivalry records)
+
+---
+
+## 📋 What Users Can Ask
+
+### Videos:
+- "Show me Baker Mayfield highlights"
+- "OU vs Texas videos"
+- "Touchdown clips"
+
+### Scores:
+- "What's the OU score?"
+- "Did OU win?"
+- "Scoreboard today"
+
+### Rankings:
+- "Where is OU ranked?"
+- "Top 25"
+
+### Schedule:
+- "When does OU play next?"
+- "OU schedule"
+
+### Recruiting:
+- "OU recruiting class"
+- "Who did we recruit?"
+
+### Stats:
+- "OU team stats"
+- "Season stats"
+
+### History:
+- "OU vs Texas record"
+- "OU all-time record"
+- "Big 12 standings"
+
+---
+
+## 🚀 Deploy Instructions
+
+1. **Update GitHub:**
+   ```bash
+   cd your-repo/unified-mcp
+   git add server.js
+   git commit -m "Reduce to essential 10 tools for better routing"
+   git push
+   ```
+
+2. **Railway auto-deploys**
+
+3. **Reconnect PaymeGPT:**
+   - Delete current connection
+   - Re-add with same URL
+   - Should discover 10 tools
+
+4. **Test:**
+   - "Show me Baker Mayfield highlights"
+   - Should work this time!
+
+---
+
+## ✅ Success Criteria
+
+Your bot is working when:
+- ✅ PaymeGPT discovers 10 tools
+- ✅ Video search returns embedded players
+- ✅ Scores return live data
+- ✅ All 10 tools execute properly
+
+**This is the sweet spot: enough features, but not too many for PaymeGPT to handle!**
