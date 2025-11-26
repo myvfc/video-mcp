@@ -1,1 +1,19 @@
+{
+  "name": "Video MCP",
+  "version": "1.0.0",
+  "description": "MCP server for searching OU video database",
+  "tools": [
+    {
+      "name": "search_videos",
+      "description": "Search OU videos in the GitHub database",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" }
+        },
+        "required": ["query"]
+      }
+    }
+  ]
+}
 
