@@ -130,17 +130,23 @@ app.post("/mcp", requireAuth, async (req, res) => {
 
       console.log(`✅ Found ${matches.length} videos`);
       
-      // Simple format - just what's needed for embedding
-      const simpleVideos = matches.map(v => {
+      // Build formatted response with embed iframes
+      let responseText = "";
+      
+      matches.forEach((v, index) => {
         const url = v["URL"] || "";
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : "";
+        const title = v["OU Sooners videos"] || "OU Video";
+        const desc = v["Description"] || "";
         
-        return {
-          title: v["OU Sooners videos"] || "OU Video",
-          embedUrl: videoId ? `https://www.youtube.com/embed/${videoId}` : url,
-          description: v["Description"] || ""
-        };
+        if (videoId) {
+          responseText += `\n**${title}**\n\n`;
+          responseText += `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>\n\n`;
+          responseText += `*${desc}*\n\n`;
+        }
       });
+      
+      responseText += "\nWant to see more? Just ask!";
       
       return res.json({
         jsonrpc: "2.0",
@@ -149,7 +155,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
           content: [
             {
               type: "text",
-              text: JSON.stringify(simpleVideos)
+              text: responseText
             }
           ]
         }
