@@ -23,7 +23,6 @@ async function loadVideos() {
 
 /* ----------------------------- Auto Refresh ------------------------------ */
 setInterval(loadVideos, 15 * 60 * 1000); // 15 minutes
-await loadVideos();
 
 /* ----------------------------- Express Setup ----------------------------- */
 const app = express();
@@ -31,21 +30,26 @@ app.use(cors());
 app.use(express.json());
 
 /* ----------------------------- Keep Alive ----------------------------- */
+// Railway provides these automatically - no manual setup needed:
+// RAILWAY_PUBLIC_DOMAIN or RAILWAY_STATIC_URL
 const RAILWAY_URL = process.env.RAILWAY_PUBLIC_DOMAIN 
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  : null;
+  : process.env.RAILWAY_STATIC_URL || null;
 
 // Self-ping to keep Railway container alive
 if (RAILWAY_URL) {
+  console.log(`🔄 Keep-alive enabled for: ${RAILWAY_URL}`);
   setInterval(async () => {
     try {
       const response = await fetch(`${RAILWAY_URL}/health`);
       const data = await response.json();
       console.log(`💓 Keep-alive ping: ${data.videos} videos, status: ${data.status}`);
     } catch (err) {
-      console.log(`💓 Keep-alive ping (no response yet)`);
+      console.log(`💓 Keep-alive ping attempt (waiting for domain...)`);
     }
   }, 5 * 60 * 1000); // Ping every 5 minutes
+} else {
+  console.log(`⚠️  No Railway URL detected - keep-alive disabled (normal for local dev)`);
 }
 
 // Heartbeat logging
@@ -139,8 +143,20 @@ app.post("/mcp", requireAuth, async (req, res) => {
 });
 
 /* ----------------------------- Start Server ------------------------------ */
-app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Video MCP running on port ${PORT}`);
+  console.log(`✅ Server ready and accepting connections`);
+  
+  // Load videos AFTER server is running
+  loadVideos().then(() => {
+    console.log(`📊 Database loaded with ${videoDB.length} videos`);
+  });
+});
+
+// Ensure server is listening on all interfaces
+server.on('listening', () => {
+  const addr = server.address();
+  console.log(`🌐 Listening on ${addr.address}:${addr.port}`);
 });
 
 /* --------------------------- Error Handlers ------------------------------ */
