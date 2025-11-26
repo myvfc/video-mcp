@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+
 
 const PORT = process.env.PORT || 8080;
 const VIDEOS_URL = "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
