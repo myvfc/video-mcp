@@ -33,8 +33,8 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.json({ 
     status: "ok", 
-    service: "Unified Boomer Bot MCP",
-    tools: 21,
+    service: "Unified Boomer Bot MCP - Essential 10",
+    tools: 10,
     videos: videoDB.length,
     uptime: process.uptime()
   });
@@ -473,27 +473,27 @@ app.post("/mcp", requireAuth, async (req, res) => {
       return res.status(200).end();
     }
 
-    // Tools List
+    // Tools List - ESSENTIAL 10 ONLY
     if (method === "tools/list") {
       return res.json({
         jsonrpc: "2.0",
         id,
         result: {
           tools: [
-            // VIDEO TOOL
+            // VIDEO TOOL (1)
             {
               name: "search_videos",
-              description: "Search 4,773 OU Sooners videos",
+              description: "Search 4,773 OU Sooners videos - returns embedded video players",
               inputSchema: {
                 type: "object",
-                properties: { query: { type: "string", description: "Search keywords" } },
+                properties: { query: { type: "string", description: "Search keywords (1-3 words)" } },
                 required: ["query"]
               }
             },
-            // ESPN TOOLS
+            // ESPN TOOLS (4)
             {
               name: "get_score",
-              description: "Get current/recent game score for a team",
+              description: "Get current or recent game score for Oklahoma",
               inputSchema: {
                 type: "object",
                 properties: { team: { type: "string", description: "Team name (default: Oklahoma)" } }
@@ -501,12 +501,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
             },
             {
               name: "get_scoreboard",
-              description: "Get current scoreboard for all games",
-              inputSchema: { type: "object", properties: {} }
-            },
-            {
-              name: "get_ncaa_scoreboard",
-              description: "Get NCAA football scoreboard",
+              description: "Get today's college football scoreboard - all games",
               inputSchema: { type: "object", properties: {} }
             },
             {
@@ -515,30 +510,17 @@ app.post("/mcp", requireAuth, async (req, res) => {
               inputSchema: { type: "object", properties: {} }
             },
             {
-              name: "get_ncaa_rankings",
-              description: "Get NCAA Coaches Poll rankings",
-              inputSchema: { type: "object", properties: {} }
-            },
-            {
               name: "get_schedule",
-              description: "Get team schedule",
+              description: "Get Oklahoma's game schedule with dates and opponents",
               inputSchema: {
                 type: "object",
                 properties: { team: { type: "string", description: "Team name (default: Oklahoma)" } }
               }
             },
-            {
-              name: "get_game_player_stats",
-              description: "Get player statistics from a game",
-              inputSchema: {
-                type: "object",
-                properties: { team: { type: "string", description: "Team name (default: Oklahoma)" } }
-              }
-            },
-            // CFBD TOOLS
+            // CFBD TOOLS (5)
             {
               name: "get_recruiting",
-              description: "Get recruiting class rankings",
+              description: "Get OU recruiting class rankings and points",
               inputSchema: {
                 type: "object",
                 properties: {
@@ -549,7 +531,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
             },
             {
               name: "get_team_stats",
-              description: "Get team season statistics",
+              description: "Get Oklahoma season statistics (yards, touchdowns, etc.)",
               inputSchema: {
                 type: "object",
                 properties: {
@@ -560,7 +542,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
             },
             {
               name: "get_team_matchup",
-              description: "Get head-to-head record between two teams",
+              description: "Get head-to-head all-time record (e.g. OU vs Texas)",
               inputSchema: {
                 type: "object",
                 properties: {
@@ -571,7 +553,7 @@ app.post("/mcp", requireAuth, async (req, res) => {
             },
             {
               name: "get_conference_standings",
-              description: "Get conference standings",
+              description: "Get conference standings (e.g. Big 12, SEC)",
               inputSchema: {
                 type: "object",
                 properties: {
@@ -581,89 +563,14 @@ app.post("/mcp", requireAuth, async (req, res) => {
               }
             },
             {
-              name: "get_game_stats",
-              description: "Get game-by-game statistics for a team",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  team: { type: "string", description: "Team name (default: Oklahoma)" },
-                  year: { type: "number", description: "Year (default: current year)" }
-                }
-              }
-            },
-            {
-              name: "get_play_by_play",
-              description: "Get play-by-play data for a specific game",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  gameId: { type: "string", description: "Game ID", required: true }
-                }
-              }
-            },
-            {
-              name: "get_player_stats",
-              description: "Get individual player statistics",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  player: { type: "string", description: "Player name" },
-                  year: { type: "number", description: "Year (default: 2017)" }
-                }
-              }
-            },
-            {
-              name: "get_returning_production",
-              description: "Get returning production data",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  team: { type: "string", description: "Team name (default: Oklahoma)" },
-                  year: { type: "number", description: "Year (default: current year)" }
-                }
-              }
-            },
-            {
-              name: "get_team_rankings",
-              description: "Get historical team rankings by week",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  team: { type: "string", description: "Team name (default: Oklahoma)" },
-                  year: { type: "number", description: "Year (default: current year)" }
-                }
-              }
-            },
-            {
               name: "get_team_records",
-              description: "Get team historical records",
+              description: "Get Oklahoma's all-time win/loss records",
               inputSchema: {
                 type: "object",
                 properties: {
                   team: { type: "string", description: "Team name (default: Oklahoma)" },
                   startYear: { type: "number", description: "Start year (default: 2000)" },
                   endYear: { type: "number", description: "End year (default: current year)" }
-                }
-              }
-            },
-            {
-              name: "get_team_talent",
-              description: "Get team talent composite rating",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  team: { type: "string", description: "Team name (default: Oklahoma)" },
-                  year: { type: "number", description: "Year (default: current year)" }
-                }
-              }
-            },
-            {
-              name: "get_venue_info",
-              description: "Get stadium/venue information",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  venue: { type: "string", description: "Venue name (default: Memorial Stadium)" }
                 }
               }
             }
