@@ -183,15 +183,76 @@ async function handleGetSchedule(params) {
   // ESPN team ID for Oklahoma is 201
   const data = await callESPN('/teams/201/schedule');
   
-  if (!data?.events) return "No schedule found.";
+  if (!data?.events) {
+    console.log(`❌ No events data from ESPN`);
+    return "No schedule found.";
+  }
   
-  let result = `📅 ${team} Schedule:\n\n`;
-  data.events.forEach(e => {
-    const comp = e.competitions[0];
-    const opponent = comp.competitors.find(c => !c.team.displayName.includes(team));
-    const date = new Date(e.date).toLocaleDateString();
-    result += `${date} - vs ${opponent?.team.displayName || 'TBD'}\n`;
+  console.log(`📊 ESPN returned ${data.events.length} total events`);
+  
+  const now = new Date();
+  console.log(`📆 Current date: ${now.toISOString()}`);
+  
+  // Log first few events to see what we got
+  data.events.slice(0, 3).forEach((e, i) => {
+    console.log(`Event ${i}: ${e.name} on ${e.date}`);
   });
+  
+  // Separate past and future games
+  const futureGames = data.events
+    .filter(e => {
+      const gameDate = new Date(e.date);
+      const isFuture = gameDate > now;
+      console.log(`  ${e.name}: ${gameDate.toISOString()} - Future? ${isFuture}`);
+      return isFuture;
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+  console.log(`✅ Found ${futureGames.length} future games`);
+  
+  if (futureGames.length === 0) {
+    return "🏈 The 2024 season has ended. No upcoming games are currently scheduled.\n\nThe 2025 season will begin in late August/early September 2025.\n\nBowl games or playoff games may be announced later.";
+  }
+  
+  // Get the NEXT game (first future game)
+  const nextGame = futureGames[0];
+  const comp = nextGame.competitions[0];
+  const opponent = comp.competitors.find(c => !c.team.displayName.includes(team));
+  const gameDate = new Date(nextGame.date);
+  const dateStr = gameDate.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    month: 'long', 
+    day: 'numeric',
+    year: 'numeric'
+  });
+  const timeStr = gameDate.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    timeZoneName: 'short'
+  });
+  
+  let result = `🏈 NEXT GAME:\n\n`;
+  result += `${team} vs ${opponent?.team.displayName || 'TBD'}\n`;
+  result += `📅 ${dateStr}\n`;
+  result += `🕐 ${timeStr}\n`;
+  
+  if (comp.venue) {
+    result += `🏟️ ${comp.venue.fullName || 'Venue TBD'}\n`;
+  }
+  
+  if (comp.broadcasts && comp.broadcasts.length > 0) {
+    result += `📺 ${comp.broadcasts[0].media.shortName || 'TV TBD'}\n`;
+  }
+  
+  // Show next 3 upcoming games
+  if (futureGames.length > 1) {
+    result += `\n📅 UPCOMING GAMES:\n`;
+    futureGames.slice(1, 4).forEach(e => {
+      const opp = e.competitions[0].competitors.find(c => !c.team.displayName.includes(team));
+      const date = new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      result += `${date} - vs ${opp?.team.displayName || 'TBD'}\n`;
+    });
+  }
   
   return result;
 }
