@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Unified MCP server with video search, ESPN, and CFBD tools",
   "type": "module",
-  "main": "unified-server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node unified-server.js"
+    "start": "node server.js"
   },
   "engines": {
     "node": ">=18.0.0"
