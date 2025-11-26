@@ -31,9 +31,44 @@ app.use(cors());
 app.use(express.json());
 
 /* ----------------------------- Keep Alive ----------------------------- */
+const RAILWAY_URL = process.env.RAILWAY_PUBLIC_DOMAIN 
+  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  : null;
+
+// Self-ping to keep Railway container alive
+if (RAILWAY_URL) {
+  setInterval(async () => {
+    try {
+      const response = await fetch(`${RAILWAY_URL}/health`);
+      const data = await response.json();
+      console.log(`💓 Keep-alive ping: ${data.videos} videos, status: ${data.status}`);
+    } catch (err) {
+      console.log(`💓 Keep-alive ping (no response yet)`);
+    }
+  }, 5 * 60 * 1000); // Ping every 5 minutes
+}
+
+// Heartbeat logging
 setInterval(() => {
-  console.log(`💓 Heartbeat ${new Date().toISOString()}`);
+  console.log(`💓 Heartbeat ${new Date().toISOString()} | Videos: ${videoDB.length}`);
 }, 30000);
+
+/* ---------------------------- Health Check ------------------------------- */
+app.get("/", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    service: "Video MCP Server",
+    videos: videoDB.length,
+    uptime: process.uptime()
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "healthy", 
+    videos: videoDB.length 
+  });
+});
 
 /* ---------------------------- Auth Middleware ---------------------------- */
 function requireAuth(req, res, next) {
@@ -106,4 +141,15 @@ app.post("/mcp", requireAuth, async (req, res) => {
 /* ----------------------------- Start Server ------------------------------ */
 app.listen(PORT, () => {
   console.log(`🚀 Video MCP running on port ${PORT}`);
+});
+
+/* --------------------------- Error Handlers ------------------------------ */
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  // Don't exit - keep server running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - keep server running
 });
