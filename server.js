@@ -30,7 +30,7 @@ app.get("/openapi.json", (req, res) => {
 const VIDEO_JSON_URL = "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
 const AUTH_TOKEN = process.env.MCP_AUTH_TOKEN;  // set in Railway
 let videos = [];
-
+// clean redeploy
 // =======================
 // LOAD VIDEO DATABASE
 // =======================
