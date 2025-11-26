@@ -29,6 +29,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Log ALL incoming requests to diagnose Railway health checks
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.path} from ${req.ip}`);
+  next();
+});
+
 /* ----------------------------- Keep Alive ----------------------------- */
 // Railway provides these automatically - no manual setup needed:
 // RAILWAY_PUBLIC_DOMAIN or RAILWAY_STATIC_URL
@@ -68,10 +74,13 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-  res.json({ 
-    status: "healthy", 
-    videos: videoDB.length 
-  });
+  console.log("🏥 Health check pinged");
+  res.status(200).send("OK");
+});
+
+app.get("/healthz", (req, res) => {
+  console.log("🏥 Healthz check pinged");
+  res.status(200).json({ status: "healthy" });
 });
 
 /* ---------------------------- Auth Middleware ---------------------------- */
@@ -143,20 +152,16 @@ app.post("/mcp", requireAuth, async (req, res) => {
 });
 
 /* ----------------------------- Start Server ------------------------------ */
-const server = app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, () => {
+  const addr = server.address();
   console.log(`🚀 Video MCP running on port ${PORT}`);
+  console.log(`🌐 Listening on ${addr.address}:${addr.port}`);
   console.log(`✅ Server ready and accepting connections`);
   
   // Load videos AFTER server is running
   loadVideos().then(() => {
     console.log(`📊 Database loaded with ${videoDB.length} videos`);
   });
-});
-
-// Ensure server is listening on all interfaces
-server.on('listening', () => {
-  const addr = server.address();
-  console.log(`🌐 Listening on ${addr.address}:${addr.port}`);
 });
 
 /* --------------------------- Error Handlers ------------------------------ */
