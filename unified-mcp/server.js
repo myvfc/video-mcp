@@ -219,22 +219,28 @@ async function handleGetSchedule(params) {
   const comp = nextGame.competitions[0];
   const opponent = comp.competitors.find(c => !c.team.displayName.includes(team));
   const gameDate = new Date(nextGame.date);
+  
+  // Format date
   const dateStr = gameDate.toLocaleDateString('en-US', { 
     weekday: 'long', 
     month: 'long', 
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
+    timeZone: 'America/Chicago' // Oklahoma/Central Time
   });
+  
+  // Format time in Central Time (Oklahoma local time)
   const timeStr = gameDate.toLocaleTimeString('en-US', { 
     hour: 'numeric', 
     minute: '2-digit',
+    timeZone: 'America/Chicago', // Oklahoma/Central Time
     timeZoneName: 'short'
   });
   
   let result = `🏈 NEXT GAME:\n\n`;
   result += `${team} vs ${opponent?.team.displayName || 'TBD'}\n`;
   result += `📅 ${dateStr}\n`;
-  result += `🕐 ${timeStr}\n`;
+  result += `🕐 ${timeStr} (Central Time)\n`;
   
   if (comp.venue) {
     result += `🏟️ ${comp.venue.fullName || 'Venue TBD'}\n`;
