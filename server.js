@@ -1,9 +1,6 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-
 
 const PORT = process.env.PORT || 8080;
 const VIDEOS_URL = "https://raw.githubusercontent.com/myvfc/video-db/main/videos.json";
@@ -49,7 +46,7 @@ function requireAuth(req, res, next) {
 app.post("/mcp", requireAuth, async (req, res) => {
   try {
     const { jsonrpc, method, id, params } = req.body;
-
+    
     if (jsonrpc !== "2.0") {
       return res.json({ jsonrpc: "2.0", id, error: "Invalid JSON-RPC version" });
     }
@@ -85,7 +82,6 @@ app.post("/mcp", requireAuth, async (req, res) => {
       }
 
       const q = params.arguments?.query?.toLowerCase() || "";
-
       const matches = videoDB
         .filter(v =>
           v["OU Sooner video"]?.toLowerCase().includes(q) ||
@@ -101,7 +97,6 @@ app.post("/mcp", requireAuth, async (req, res) => {
     }
 
     return res.json({ jsonrpc: "2.0", id, error: "Unknown method" });
-
   } catch (err) {
     console.error("❌ MCP Error", err);
     res.json({ jsonrpc: "2.0", id: null, error: "Server error" });
@@ -112,4 +107,3 @@ app.post("/mcp", requireAuth, async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Video MCP running on port ${PORT}`);
 });
-
