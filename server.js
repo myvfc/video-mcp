@@ -123,8 +123,8 @@ app.post("/mcp", requireAuth, async (req, res) => {
       
       const matches = videoDB
         .filter(v =>
-          v["OU Sooner video"]?.toLowerCase().includes(query) ||
-          v.description?.toLowerCase().includes(query)
+          v["OU Sooners videos"]?.toLowerCase().includes(query) ||
+          v["Description"]?.toLowerCase().includes(query)
         )
         .slice(0, 25);
 
