@@ -1,0 +1,18 @@
+{
+  "name": "unified-boomer-bot-mcp",
+  "version": "1.0.0",
+  "description": "Unified MCP server with video search, ESPN, and CFBD tools",
+  "type": "module",
+  "main": "unified-server.js",
+  "scripts": {
+    "start": "node unified-server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^3.3.2"
+  }
+}
