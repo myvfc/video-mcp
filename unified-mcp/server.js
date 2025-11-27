@@ -33,8 +33,8 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.json({ 
     status: "ok", 
-    service: "Unified Boomer Bot MCP - Essential 10",
-    tools: 10,
+    service: "Unified Boomer Bot MCP - Essential 11",
+    tools: 11,
     videos: videoDB.length,
     uptime: process.uptime()
   });
@@ -90,6 +90,45 @@ async function callCFBD(endpoint) {
 /* ----------------------------- TOOL HANDLERS ----------------------------- */
 
 // VIDEO SEARCH
+// CURRENT DATE (Hidden Tool)
+async function handleGetCurrentDate(params) {
+  console.log(`📅 Get Current Date - Internal tool called`);
+  
+  const now = new Date();
+  
+  const dateStr = now.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    month: 'long', 
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'America/Chicago'
+  });
+  
+  const timeStr = now.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    timeZone: 'America/Chicago',
+    timeZoneName: 'short'
+  });
+  
+  const isoDate = now.toISOString();
+  
+  return `CURRENT DATE/TIME REFERENCE (Use this for internal logic - do not display to user unless relevant):
+
+Date: ${dateStr}
+Time: ${timeStr}
+ISO Format: ${isoDate}
+Timezone: Central Time (America/Chicago)
+
+Use this to:
+- Determine if games are "next" (future from this date)
+- Filter "today's" games (this date)
+- Understand "recent" (last 7 days from this date)
+- Identify "upcoming" (after this date)
+
+Season Context: 2024-2025 College Football Season (late November - bowl season approaching)`;
+}
+
 async function handleSearchVideos(params) {
   const query = params?.query?.toLowerCase() || "";
   console.log(`🔍 Video Search: "${query}"`);
@@ -269,12 +308,30 @@ async function handleGetRecruiting(params) {
   const year = params?.year || new Date().getFullYear();
   console.log(`🎓 Get Recruiting: ${team} ${year}`);
   
-  const data = await callCFBD(`/recruiting/teams?year=${year}&team=${team}`);
+  // Check if API key exists
+  if (!CFBD_API_KEY) {
+    console.log(`❌ CFBD_API_KEY not set!`);
+    return "⚠️ Recruiting data unavailable - API key not configured.";
+  }
   
-  if (!data || data.length === 0) return "No recruiting data found.";
+  console.log(`🔑 CFBD_API_KEY exists: ${CFBD_API_KEY.substring(0, 10)}...`);
+  
+  const endpoint = `/recruiting/teams?year=${year}&team=${team}`;
+  console.log(`📡 Calling CFBD: ${endpoint}`);
+  
+  const data = await callCFBD(endpoint);
+  
+  console.log(`📊 CFBD returned:`, JSON.stringify(data).substring(0, 200));
+  
+  if (!data || data.length === 0) {
+    console.log(`❌ No recruiting data returned`);
+    return `No recruiting data found for ${team} ${year}.`;
+  }
   
   const teamData = data[0];
-  return `🎓 ${team} ${year} Recruiting:\nRank: #${teamData.rank}\nPoints: ${teamData.points}\nCommits: ${teamData.commits || 'N/A'}`;
+  console.log(`✅ Team data:`, teamData);
+  
+  return `🎓 ${team} ${year} Recruiting Class:\n\nRank: #${teamData.rank || 'N/A'}\nPoints: ${teamData.points || 'N/A'}\nCommits: ${teamData.commits || 'N/A'}\n\n(Source: CollegeFootballData.com)`;
 }
 
 async function handleGetTeamStats(params) {
@@ -540,13 +597,22 @@ app.post("/mcp", requireAuth, async (req, res) => {
       return res.status(200).end();
     }
 
-    // Tools List - ESSENTIAL 10 ONLY
+    // Tools List - ESSENTIAL 10 + DATE TOOL
     if (method === "tools/list") {
       return res.json({
         jsonrpc: "2.0",
         id,
         result: {
           tools: [
+            // DATE TOOL (INTERNAL USE)
+            {
+              name: "get_current_date",
+              description: "Get current date and time - USE THIS FIRST for any time-based queries (schedule, today, next, recent, upcoming)",
+              inputSchema: {
+                type: "object",
+                properties: {}
+              }
+            },
             // VIDEO TOOL (1)
             {
               name: "search_videos",
@@ -655,6 +721,9 @@ app.post("/mcp", requireAuth, async (req, res) => {
       
       // Route to appropriate handler
       switch (toolName) {
+        case "get_current_date":
+          resultText = await handleGetCurrentDate(toolArgs);
+          break;
         case "search_videos":
           resultText = await handleSearchVideos(toolArgs);
           break;
